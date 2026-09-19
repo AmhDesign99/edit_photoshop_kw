@@ -5,6 +5,10 @@ on:
     paths:
       - 'Compositor-Android/**'
       - '.github/workflows/android-build.yml'
+  pull_request:
+    paths:
+      - 'Compositor-Android/**'
+      - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
 jobs:
@@ -14,8 +18,8 @@ jobs:
       run:
         working-directory: Compositor-Android
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
