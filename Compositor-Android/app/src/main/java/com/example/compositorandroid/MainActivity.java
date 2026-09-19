@@ -4,7 +4,7 @@ import android.app.*;
 import android.content.*;
 import android.graphics.*;
 import android.net.Uri;
-import android.os.*;
+import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.*;
 import android.widget.*;
@@ -13,46 +13,49 @@ import java.io.*;
 public class MainActivity extends Activity {
     EditorModel model;
     EditorView editor;
-    LinearLayout root, layersList;
+    LinearLayout layersList;
     TextView status;
     SeekBar opacity;
+    Spinner blend;
 
-    final int blue = Color.rgb(47,124,246);
     final int panel = Color.rgb(36,36,36);
+    final int panel2 = Color.rgb(45,45,45);
 
-    @Override
-    public void onCreate(Bundle b) {
+    @Override public void onCreate(Bundle b) {
         super.onCreate(b);
         model = new EditorModel();
         model.ensureBase();
         buildUi();
     }
 
-    TextView tv(String s) {
+    TextView label(String s) {
         TextView t = new TextView(this);
-        t.setText(s);
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(12);
+        t.setText(s); t.setTextColor(Color.WHITE); t.setTextSize(12);
+        t.setGravity(Gravity.CENTER_VERTICAL); t.setPadding(10,0,10,0);
+        return t;
+    }
+
+    TextView button(String s) {
+        TextView t = label(s);
         t.setGravity(Gravity.CENTER);
-        t.setPadding(14,8,14,8);
+        t.setBackgroundColor(panel2);
         return t;
     }
 
     void buildUi() {
-        root = new LinearLayout(this);
+        LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.rgb(25,25,25));
 
-        LinearLayout menu = new LinearLayout(this);
-        menu.setBackgroundColor(Color.rgb(30,30,30));
-        String[] ms = {"File","Edit","Image","Layer","Select","Filter","View","Help"};
-
-        for (String s : ms) {
-            TextView m = tv(s);
-            menu.addView(m, new LinearLayout.LayoutParams(0,48,1));
-            m.setOnClickListener(v -> showMenu(s,m));
+        LinearLayout menus = new LinearLayout(this);
+        menus.setBackgroundColor(Color.rgb(30,30,30));
+        String[] menuNames = {"File","Edit","Image","Layer","Select","Filter","View","Help"};
+        for (String m : menuNames) {
+            TextView x = button(m);
+            menus.addView(x, new LinearLayout.LayoutParams(0,48,1));
+            x.setOnClickListener(v -> showMenu(m,x));
         }
-        root.addView(menu, new LinearLayout.LayoutParams(-1,48));
+        root.addView(menus, new LinearLayout.LayoutParams(-1,48));
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.HORIZONTAL);
@@ -60,198 +63,196 @@ public class MainActivity extends Activity {
         LinearLayout tools = new LinearLayout(this);
         tools.setOrientation(LinearLayout.VERTICAL);
         tools.setBackgroundColor(panel);
-
-        String[] ts = {"Move","Brush","Eraser","Rect","Ellipse","Text","Pick","Hand","+ Layer","Del"};
-        for (String s : ts) {
-            TextView b = tv(s);
-            tools.addView(b, new LinearLayout.LayoutParams(84,52));
-            b.setOnClickListener(v -> tool(s));
+        String[] toolNames = {"Move","Brush","Eraser","Marquee","Lasso","Crop","Rect","Ellipse","Text","Pick","Gradient","Blur","Sharpen","Dodge","Burn","Hand","+Layer","-Layer"};
+        for (String name : toolNames) {
+            TextView x=button(name);
+            tools.addView(x,new LinearLayout.LayoutParams(96,48));
+            x.setOnClickListener(v -> chooseTool(name));
         }
-        body.addView(tools,new LinearLayout.LayoutParams(92,-1));
+        ScrollView toolScroll = new ScrollView(this);
+        toolScroll.addView(tools);
+        body.addView(toolScroll,new LinearLayout.LayoutParams(100,-1));
 
         FrameLayout center = new FrameLayout(this);
-        editor = new EditorView(this,model);
+        editor=new EditorView(this,model);
         center.addView(editor,new FrameLayout.LayoutParams(-1,-1));
 
-        status = tv("100%  |  1200 × 800");
+        status=label("70%  | 1200 × 800");
         status.setBackgroundColor(Color.rgb(18,18,18));
-        FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(-1,34,Gravity.BOTTOM);
+        FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-1,34,Gravity.BOTTOM);
         center.addView(status,sp);
         body.addView(center,new LinearLayout.LayoutParams(0,-1,1));
 
-        LinearLayout right = new LinearLayout(this);
+        LinearLayout right=new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
         right.setBackgroundColor(panel);
+        right.addView(label("LAYERS"),new LinearLayout.LayoutParams(260,42));
 
-        TextView title = tv("LAYERS");
-        title.setTextSize(13);
-        right.addView(title,new LinearLayout.LayoutParams(260,44));
-
-        opacity = new SeekBar(this);
-        opacity.setMax(100);
-        opacity.setProgress(100);
-        right.addView(opacity,new LinearLayout.LayoutParams(260,44));
-
-        opacity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            public void onProgressChanged(SeekBar s,int p,boolean f) {
-                if (!model.layers.isEmpty()) {
+        opacity=new SeekBar(this);
+        opacity.setMax(100); opacity.setProgress(100);
+        right.addView(opacity,new LinearLayout.LayoutParams(260,42));
+        opacity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            public void onProgressChanged(SeekBar s,int p,boolean f){
+                if(!model.layers.isEmpty()){
                     model.layers.get(model.activeLayer).opacity=p/100f;
                     editor.invalidate();
                 }
             }
             public void onStartTrackingTouch(SeekBar s){}
-            public void onStopTrackingTouch(SeekBar s){}
+            public void onStopTrackingTouch(SeekBar s){model.snapshot();}
         });
 
-        layersList = new LinearLayout(this);
+        blend=new Spinner(this);
+        String[] blends={"Normal","Multiply","Screen","Darken","Lighten","Add"};
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,blends);
+        blend.setAdapter(adapter);
+        right.addView(blend,new LinearLayout.LayoutParams(260,40));
+        blend.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){
+                if(model.layers.size()>0) model.layers.get(model.activeLayer).blend=blends[pos];
+                editor.invalidate();
+            }
+        });
+
+        layersList=new LinearLayout(this);
         layersList.setOrientation(LinearLayout.VERTICAL);
-        right.addView(layersList,new LinearLayout.LayoutParams(260,0,1));
-
+        ScrollView layerScroll=new ScrollView(this);
+        layerScroll.addView(layersList);
+        right.addView(layerScroll,new LinearLayout.LayoutParams(260,0,1));
         body.addView(right,new LinearLayout.LayoutParams(260,-1));
-        root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
 
+        root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
         refreshLayers();
     }
 
-    void tool(String s) {
-        if (s.equals("+ Layer")) {
-            model.newLayer();
-            refreshLayers();
-            return;
-        }
-        if (s.equals("Del")) {
-            model.deleteActive();
-            refreshLayers();
-            return;
-        }
+    void chooseTool(String name) {
+        if(name.equals("+Layer")) { model.snapshot(); model.newLayer(); refreshLayers(); return; }
+        if(name.equals("-Layer")) { model.deleteActive(); refreshLayers(); return; }
 
-        EditorView.Tool t = EditorView.Tool.BRUSH;
-        switch (s) {
+        EditorView.Tool t;
+        switch(name) {
             case "Move": t=EditorView.Tool.MOVE; break;
             case "Brush": t=EditorView.Tool.BRUSH; break;
             case "Eraser": t=EditorView.Tool.ERASER; break;
+            case "Marquee": t=EditorView.Tool.MARQUEE; break;
+            case "Lasso": t=EditorView.Tool.LASSO; break;
+            case "Crop": t=EditorView.Tool.CROP; break;
             case "Rect": t=EditorView.Tool.RECT; break;
             case "Ellipse": t=EditorView.Tool.ELLIPSE; break;
             case "Text": t=EditorView.Tool.TEXT; break;
             case "Pick": t=EditorView.Tool.EYEDROPPER; break;
-            case "Hand": t=EditorView.Tool.HAND; break;
+            case "Gradient": t=EditorView.Tool.GRADIENT; break;
+            case "Blur": t=EditorView.Tool.BLUR; break;
+            case "Sharpen": t=EditorView.Tool.SHARPEN; break;
+            case "Dodge": t=EditorView.Tool.DODGE; break;
+            case "Burn": t=EditorView.Tool.BURN; break;
+            default: t=EditorView.Tool.HAND;
         }
         editor.setTool(t);
     }
 
     void refreshLayers() {
         layersList.removeAllViews();
-
-        for (int i=model.layers.size()-1;i>=0;i--) {
+        for(int i=model.layers.size()-1;i>=0;i--){
             final int idx=i;
-            TextView l=tv((idx==model.activeLayer?"● ":"")+model.layers.get(idx).name);
-            l.setGravity(Gravity.LEFT|Gravity.CENTER_VERTICAL);
-            l.setBackgroundColor(idx==model.activeLayer?Color.rgb(52,69,92):panel);
-            l.setOnClickListener(v -> {
+            TextView row=label((idx==model.activeLayer?"● ":"○ ")+model.layers.get(idx).name);
+            row.setBackgroundColor(idx==model.activeLayer?Color.rgb(52,69,92):panel);
+            row.setOnClickListener(v -> {
                 model.activeLayer=idx;
                 opacity.setProgress(Math.round(model.layers.get(idx).opacity*100));
+                blend.setSelection(new String[]{"Normal","Multiply","Screen","Darken","Lighten","Add"}.length-1);
                 refreshLayers();
             });
-            layersList.addView(l,new LinearLayout.LayoutParams(-1,48));
+            layersList.addView(row,new LinearLayout.LayoutParams(-1,46));
         }
+        updateStatus();
     }
 
-    void showMenu(String s,View anchor) {
+    void showMenu(String s, View anchor) {
         PopupMenu pm=new PopupMenu(this,anchor);
-
         if(s.equals("File")){
             pm.getMenu().add("Open Image");
             pm.getMenu().add("Export PNG");
             pm.getMenu().add("Export JPG");
+        } else if(s.equals("Edit")){
+            pm.getMenu().add("Undo");
+            pm.getMenu().add("Redo");
+            pm.getMenu().add("Select All");
+            pm.getMenu().add("Deselect");
+        } else if(s.equals("Image")){
+            pm.getMenu().add("Grayscale");
+            pm.getMenu().add("Invert");
+            pm.getMenu().add("Fit");
         } else if(s.equals("Layer")){
             pm.getMenu().add("New Layer");
-            pm.getMenu().add("Delete Layer");
             pm.getMenu().add("Duplicate Layer");
+            pm.getMenu().add("Delete Layer");
+            pm.getMenu().add("Add Mask");
+            pm.getMenu().add("Remove Mask");
+        } else if(s.equals("Select")){
+            pm.getMenu().add("Select All");
+            pm.getMenu().add("Deselect");
+        } else if(s.equals("Filter")){
+            pm.getMenu().add("Blur");
+            pm.getMenu().add("Sharpen");
+            pm.getMenu().add("Grayscale");
+            pm.getMenu().add("Invert");
         } else if(s.equals("View")){
             pm.getMenu().add("Zoom In");
             pm.getMenu().add("Zoom Out");
             pm.getMenu().add("Fit");
-        } else if(s.equals("Edit")){
-            pm.getMenu().add("Undo");
-            pm.getMenu().add("Redo");
-        } else if(s.equals("Image")){
-            pm.getMenu().add("Reset View");
         } else {
-            pm.getMenu().add("Coming soon");
+            pm.getMenu().add("Compositor Android");
+            pm.getMenu().add("Keyboard / gesture workflow");
         }
-
-        pm.setOnMenuItemClickListener(it -> {
-            handleMenu(s,it.getTitle().toString());
-            return true;
-        });
+        pm.setOnMenuItemClickListener(it->{handleMenu(it.getTitle().toString());return true;});
         pm.show();
     }
 
-    void handleMenu(String s,String a) {
-        if(a.equals("Open Image")){
-            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            i.setType("image/*");
-            i.addCategory(Intent.CATEGORY_OPENABLE);
-            startActivityForResult(i,10);
-        } else if(a.equals("Export PNG")){
-            export(Bitmap.CompressFormat.PNG,"png");
-        } else if(a.equals("Export JPG")){
-            export(Bitmap.CompressFormat.JPEG,"jpg");
-        } else if(a.equals("New Layer")){
-            model.newLayer();
-            refreshLayers();
-        } else if(a.equals("Delete Layer")){
-            model.deleteActive();
-            refreshLayers();
-        } else if(a.equals("Duplicate Layer")){
-            duplicateActiveLayer();
-        } else if(a.equals("Zoom In")){
-            editor.setZoom(editor.getZoom()*1.2f);
-            updateStatus();
-        } else if(a.equals("Zoom Out")){
-            editor.setZoom(editor.getZoom()/1.2f);
-            updateStatus();
-        } else if(a.equals("Fit")){
-            editor.setZoom(1f);
-            updateStatus();
-        } else if(a.equals("Reset View")){
-            editor.setZoom(1f);
-            updateStatus();
+    void handleMenu(String a){
+        switch(a){
+            case "Open Image":
+                Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                i.setType("image/*"); i.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(i,10); break;
+            case "Export PNG": export(Bitmap.CompressFormat.PNG,"png"); break;
+            case "Export JPG": export(Bitmap.CompressFormat.JPEG,"jpg"); break;
+            case "Undo": if(model.undo()) {refreshLayers();editor.invalidate();} break;
+            case "Redo": if(model.redo()) {refreshLayers();editor.invalidate();} break;
+            case "Select All": editor.selectAll(); break;
+            case "Deselect": editor.clearSelection(); break;
+            case "Grayscale": editor.grayscale(); break;
+            case "Invert": editor.invert(); break;
+            case "Blur": editor.applyBlur(); break;
+            case "Sharpen": editor.applySharpen(); break;
+            case "New Layer": model.snapshot(); model.newLayer(); refreshLayers(); break;
+            case "Duplicate Layer": model.duplicateActive(); refreshLayers(); break;
+            case "Delete Layer": model.deleteActive(); refreshLayers(); break;
+            case "Add Mask": editor.addMask(); break;
+            case "Remove Mask": editor.removeMask(); break;
+            case "Zoom In": editor.setZoom(editor.getZoom()*1.2f); updateStatus(); break;
+            case "Zoom Out": editor.setZoom(editor.getZoom()/1.2f); updateStatus(); break;
+            case "Fit": editor.setZoom(0.7f); updateStatus(); break;
         }
     }
 
-    void duplicateActiveLayer() {
-        if (model.layers.isEmpty()) return;
-        Layer src=model.layers.get(model.activeLayer);
-        Bitmap copy=src.bitmap.copy(Bitmap.Config.ARGB_8888,true);
-        model.layers.add(new Layer(src.name+" copy",copy,src.opacity,src.visible,src.blend));
-        model.activeLayer=model.layers.size()-1;
-        refreshLayers();
-    }
-
-    @Override
-    protected void onActivityResult(int r,int c,Intent d){
+    @Override protected void onActivityResult(int r,int c,Intent d){
         super.onActivityResult(r,c,d);
         if(r==10&&c==RESULT_OK&&d!=null&&d.getData()!=null){
             try{
-                Uri uri=d.getData();
-                InputStream in=getContentResolver().openInputStream(uri);
+                InputStream in=getContentResolver().openInputStream(d.getData());
                 Bitmap src=BitmapFactory.decodeStream(in);
-                if(in!=null) in.close();
-                if(src==null)return;
-
-                model.width=src.getWidth();
-                model.height=src.getHeight();
+                if(in!=null)in.close();
+                if(src==null)throw new IOException("Invalid image");
+                model.width=src.getWidth(); model.height=src.getHeight();
                 model.layers.clear();
                 model.layers.add(new Layer("Image",src.copy(Bitmap.Config.ARGB_8888,true)));
                 model.activeLayer=0;
-                refreshLayers();
-                editor.invalidate();
-                updateStatus();
-            }catch(Exception e){
-                Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();
-            }
+                model.clearUndo(); model.snapshot();
+                refreshLayers(); editor.invalidate();
+            }catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}
         }
     }
 
@@ -260,34 +261,25 @@ public class MainActivity extends Activity {
             Bitmap out=Bitmap.createBitmap(model.width,model.height,Bitmap.Config.ARGB_8888);
             Canvas c=new Canvas(out);
             c.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR);
-
             Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
             for(Layer l:model.layers){
-                if(!l.visible) continue;
+                if(!l.visible)continue;
                 p.setAlpha((int)(255*l.opacity));
                 c.drawBitmap(l.bitmap,0,0,p);
             }
-
-            String name="compositor_export_"+System.currentTimeMillis()+"."+ext;
-            ContentValues cv=new ContentValues();
+            String name="compositor_"+System.currentTimeMillis()+"."+ext;
+            android.content.ContentValues cv=new android.content.ContentValues();
             cv.put(MediaStore.Images.Media.DISPLAY_NAME,name);
             cv.put(MediaStore.Images.Media.MIME_TYPE,fmt==Bitmap.CompressFormat.JPEG?"image/jpeg":"image/png");
-
-            Uri u=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);
-            if(u==null) throw new IOException("Tidak dapat membuat file output.");
-
+            android.net.Uri u=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,cv);
+            if(u==null)throw new IOException("Cannot create output");
             OutputStream os=getContentResolver().openOutputStream(u);
-            if(os==null) throw new IOException("Tidak dapat membuka output stream.");
-            out.compress(fmt,95,os);
-            os.close();
-
-            Toast.makeText(this,"Exported to Pictures",Toast.LENGTH_SHORT).show();
-        }catch(Exception e){
-            Toast.makeText(this,e.toString(),Toast.LENGTH_LONG).show();
-        }
+            out.compress(fmt,95,os); os.close();
+            Toast.makeText(this,"Exported: "+name,Toast.LENGTH_SHORT).show();
+        }catch(Exception e){Toast.makeText(this,e.toString(),Toast.LENGTH_LONG).show();}
     }
 
     void updateStatus(){
-        status.setText(Math.round(editor.getZoom()*100)+"%  |  "+model.width+" × "+model.height);
+        if(status!=null)status.setText(Math.round(editor.getZoom()*100)+"%  |  "+model.width+" × "+model.height);
     }
 }
