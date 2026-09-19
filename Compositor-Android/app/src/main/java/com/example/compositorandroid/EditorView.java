@@ -62,7 +62,7 @@ public class EditorView extends View {
         for (Layer l : model.layers) {
             if (!l.visible) continue;
             paint.setAlpha(Math.round(l.opacity * 255));
-            paint.setBlendMode(blendFor(l.blend));
+            paint.setXfermode(new PorterDuffXfermode(porterFor(l.blend)));
             if (l.mask == null) {
                 c.drawBitmap(l.bitmap, 0, 0, paint);
             } else {
@@ -72,7 +72,7 @@ public class EditorView extends View {
             }
         }
 
-        paint.setBlendMode(BlendMode.SRC_OVER);
+        paint.setXfermode(null);
         paint.setAlpha(255);
 
         if (hasSelection) {
@@ -102,15 +102,14 @@ public class EditorView extends View {
         c.restore();
     }
 
-    private BlendMode blendFor(String name) {
-        if (Build.VERSION.SDK_INT < 29) return BlendMode.SRC_OVER;
+    private PorterDuff.Mode porterFor(String name) {
         switch (name) {
-            case "Multiply": return BlendMode.MULTIPLY;
-            case "Screen": return BlendMode.SCREEN;
-            case "Darken": return BlendMode.DARKEN;
-            case "Lighten": return BlendMode.LIGHTEN;
-            case "Add": return BlendMode.PLUS;
-            default: return BlendMode.SRC_OVER;
+            case "Multiply": return PorterDuff.Mode.MULTIPLY;
+            case "Screen": return PorterDuff.Mode.SCREEN;
+            case "Darken": return PorterDuff.Mode.DARKEN;
+            case "Lighten": return PorterDuff.Mode.LIGHTEN;
+            case "Add": return PorterDuff.Mode.ADD;
+            default: return PorterDuff.Mode.SRC_OVER;
         }
     }
 
