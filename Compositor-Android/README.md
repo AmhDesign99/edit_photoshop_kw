@@ -23,3 +23,7 @@ A workflow at `.github/workflows/android-build.yml` builds a debug APK on pushes
 
 ## Next modules
 PSD project files, non-destructive adjustment layers, better selection engines, transform handles, clone/healing, advanced filters, guides/snapping, and touch/gesture refinement.
+
+
+## CI build
+Build triggered from the Android build branch to produce a debug APK artifact.
