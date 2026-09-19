@@ -1,0 +1,21 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.amhdesign.pointercustomizer'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.amhdesign.pointercustomizer'
+        minSdk 26
+        targetSdk 35
+        versionCode 2
+        versionName '1.1'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
