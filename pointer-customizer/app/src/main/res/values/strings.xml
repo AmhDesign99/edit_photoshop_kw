@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Pointer Customizer</string>
+    <string name="accessibility_description">Pointer Customizer accessibility service for future pointer overlay experiments.</string>
+</resources>
