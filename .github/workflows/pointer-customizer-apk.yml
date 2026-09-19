@@ -1,0 +1,28 @@
+name: Build Pointer Customizer APK
+on:
+  push:
+    branches: [ pointer-customizer-v1 ]
+    paths:
+      - 'pointer-customizer/**'
+      - '.github/workflows/pointer-customizer-apk.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build debug APK
+        working-directory: pointer-customizer
+        run: gradle assembleDebug --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pointer-customizer-debug-apk
+          path: pointer-customizer/app/build/outputs/apk/debug/app-debug.apk
